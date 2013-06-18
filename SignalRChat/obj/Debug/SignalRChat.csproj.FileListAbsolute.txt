@@ -29,6 +29,8 @@ F:\membershipadmin\trunk\SignalRChatRoom\SignalRChat\bin\Microsoft.AspNet.Signal
 F:\membershipadmin\trunk\SignalRChatRoom\SignalRChat\bin\Microsoft.AspNet.SignalR.SystemWeb.xml
 F:\membershipadmin\trunk\SignalRChatRoom\SignalRChat\bin\Microsoft.Owin.Host.SystemWeb.xml
 F:\membershipadmin\trunk\SignalRChatRoom\SignalRChat\bin\Newtonsoft.Json.xml
-F:\membershipadmin\trunk\SignalRChatRoom\SignalRChat\obj\Debug\SignalRChat.csprojResolveAssemblyReference.cache
 F:\membershipadmin\trunk\SignalRChatRoom\SignalRChat\obj\Debug\SignalRChat.dll
 F:\membershipadmin\trunk\SignalRChatRoom\SignalRChat\obj\Debug\SignalRChat.pdb
+F:\membershipadmin\trunk\SignalRChatRoom\SignalRChat\bin\EntityFramework.dll
+F:\membershipadmin\trunk\SignalRChatRoom\SignalRChat\bin\EntityFramework.xml
+F:\membershipadmin\trunk\SignalRChatRoom\SignalRChat\obj\Debug\SignalRChat.csprojResolveAssemblyReference.cache

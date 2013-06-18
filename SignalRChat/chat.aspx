@@ -47,7 +47,7 @@
             $.connection.hub.start().done(function () {
 
                 registerEvents(chatHub)
-                chatHub.server.connect("<% =UserName%>", "<% =Title%>");
+                chatHub.server.connect("<% =UserName%>", "<% =ChatRoomName%>");
             });
 
         });
@@ -306,7 +306,7 @@
 </head>
 <body>
     <div id="header">
-        <% = this.Title %>
+        <% = this.ChatRoomName %>
     </div>
     <br />
     <br />

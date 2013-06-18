@@ -9,6 +9,32 @@ namespace SignalRChat
 {
     public class ChatHub : Hub
     {
+        public ChatHub()
+        {
+            CurrentMessage = new List<MessageDetail>();
+            using (var dbc = new dbMessageEntities())
+            {
+                CurrentMessage = (from msg in dbc.Messages.OrderByDescending(m => m.Sent).Take(100)
+                                  select new MessageDetail()
+                                  {
+                                      Message = msg.Content,
+                                      UserName = msg.UserName,
+                                      Sent = (System.DateTime)msg.Sent,
+                                      GroupName = msg.GroupName
+                                  }).ToList();
+
+                var distincUsers = CurrentMessage.GroupBy(x => x.UserName + x.GroupName).Select(x => x.First()).Where(u => u.UserName != null);
+                if (ConnectedUsers.Count == 0)
+                {
+                    ConnectedUsers = (from msg in distincUsers
+                                      select new UserDetail()
+                                          {
+                                              Event = msg.GroupName,
+                                              UserName = msg.UserName
+                                          }).ToList();
+                }
+            }
+        }
         #region Data Members
 
         static List<UserDetail> ConnectedUsers = new List<UserDetail>();
@@ -17,21 +43,20 @@ namespace SignalRChat
         public List<MessageDetail> SameGroupMessage(string username)
         {
             string eventName = ConnectedUsers.FirstOrDefault(u => u.UserName == username).Event;
-            var userlist = ConnectedUsers.Where(u => u.Event == eventName).Select(u=>u.UserName);
-            return CurrentMessage.Where(m => userlist.Contains(m.UserName)).ToList();
+            return CurrentMessage.Where(m => m.GroupName == eventName).ToList();
         }
 
 
         public string[] GetOtherGroupUsers(string userName)
         {
-            var result =  ConnectedUsers.Where(u => u.Event != ConnectedUsers.FirstOrDefault(un => un.UserName == userName).Event).Select(u => u.UserName).ToList();
+            var result = ConnectedUsers.Where(u => u.Event != ConnectedUsers.FirstOrDefault(un => un.UserName == userName).Event).Select(u => u.UserName).ToList();
             //result.Add(userName);
             return result.ToArray();
         }
 
         public List<UserDetail> GetSameGroupUsers(string userName)
         {
-            var result = ConnectedUsers.Where(u => u.Event == ConnectedUsers.FirstOrDefault(un => un.UserName == userName).Event).ToList();
+            var result = ConnectedUsers.Where(u=>u.Event != null).Where(u => u.Event == ConnectedUsers.FirstOrDefault(un => un.UserName == userName).Event).ToList();
             return result;
         }
 
@@ -39,41 +64,29 @@ namespace SignalRChat
 
         #region Methods
 
-        public void Connect(string userName)
-        {
-            var id = Context.ConnectionId;
-
-
-            if (ConnectedUsers.Count(x => x.ConnectionId == id) == 0)
-            {
-                ConnectedUsers.Add(new UserDetail { ConnectionId = id, UserName = userName });
-
-                // send to caller
-                Clients.Caller.onConnected(id, userName, ConnectedUsers, SameGroupMessage(userName));
-
-                // send to all except caller client
-                Clients.AllExcept(id).onNewUserConnected(id, userName);
-
-            }
-
-        }
         public void Connect(string userName, string eventName)
         {
             var id = Context.ConnectionId;
+            if (ConnectedUsers.Count(x => x.ConnectionId == id) > 0) return;
 
+            UserDetail user = new UserDetail { ConnectionId = id, UserName = userName, Event = eventName };
 
-            if (ConnectedUsers.Count(x => x.ConnectionId == id) == 0)
+            if (ConnectedUsers.FirstOrDefault(u => u.UserName == userName) == null)
             {
-                ConnectedUsers.Add(new UserDetail { ConnectionId = id, UserName = userName, Event= eventName});
-
-                this.Groups.Add(id, eventName);
-                // send to caller
-                Clients.Caller.onConnected(id, userName, GetSameGroupUsers(userName), SameGroupMessage(userName));
-
-                // send to all except caller client
-                //Clients.AllExcept(GetOtherGroupUsers(userName)).onNewUserConnected(id, userName);
-
+                ConnectedUsers.Add(user);
             }
+            else
+            {
+                ConnectedUsers.FirstOrDefault(u => u.UserName == userName).ConnectionId = id;
+                ConnectedUsers.FirstOrDefault(u => u.UserName == userName).Event = eventName;
+            }
+            
+            this.Groups.Add(id, eventName);
+            // send to caller
+            Clients.Caller.onConnected(id, userName, GetSameGroupUsers(userName), SameGroupMessage(userName));
+
+            // send to all except caller client
+            //Clients.AllExcept(GetOtherGroupUsers(userName)).onNewUserConnected(id, userName);
 
         }
 
@@ -82,7 +95,9 @@ namespace SignalRChat
             // store last 100 messages in cache
             AddMessageinCache(userName, message);
             // Broad cast message
-            string groupname = ConnectedUsers.FirstOrDefault(un => un.UserName == userName).Event;
+            var user = ConnectedUsers.FirstOrDefault(un => un.UserName == userName);
+            
+            string groupname = (user != null)?user.Event:"";
             //Clients.Group(groupname).receiveMessage(userName, message);
             //Clients.Group("same", GetOtherGroupUsers(userName)).messageReceived(userName, message);
             Clients.Caller.messageReceived(userName, message);
@@ -94,16 +109,16 @@ namespace SignalRChat
 
             string fromUserId = Context.ConnectionId;
 
-            var toUser = ConnectedUsers.FirstOrDefault(x => x.ConnectionId == toUserId) ;
+            var toUser = ConnectedUsers.FirstOrDefault(x => x.ConnectionId == toUserId);
             var fromUser = ConnectedUsers.FirstOrDefault(x => x.ConnectionId == fromUserId);
 
-            if (toUser != null && fromUser!=null)
+            if (toUser != null && fromUser != null)
             {
                 // send to 
-                Clients.Client(toUserId).sendPrivateMessage(fromUserId, fromUser.UserName, message); 
+                Clients.Client(toUserId).sendPrivateMessage(fromUserId, fromUser.UserName, message);
 
                 // send to caller user
-                Clients.Caller.sendPrivateMessage(toUserId, fromUser.UserName, message); 
+                Clients.Caller.sendPrivateMessage(toUserId, fromUser.UserName, message);
             }
 
         }
@@ -123,15 +138,23 @@ namespace SignalRChat
             return base.OnDisconnected();
         }
 
-     
+
         #endregion
 
         #region private Messages
 
         private void AddMessageinCache(string userName, string message)
         {
-            CurrentMessage.Add(new MessageDetail { UserName = userName, Message = message });
-
+            string groupName = ConnectedUsers.FirstOrDefault(u => u.UserName == userName) == null ? "" : ConnectedUsers.FirstOrDefault(u => u.UserName == userName).Event;
+            var m = new MessageDetail()
+            {
+                UserName = userName,
+                Message = message,
+                Sent = System.DateTime.Now,
+                GroupName =groupName
+            };
+            CurrentMessage.Add(m);
+            m.Save();
             if (CurrentMessage.Count > 100)
                 CurrentMessage.RemoveAt(0);
         }

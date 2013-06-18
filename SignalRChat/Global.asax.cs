@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Web;
 using System.Web.Routing;
 using System.Web.Security;
@@ -37,14 +38,28 @@ namespace SignalRChat
 
         }
 
-        protected void Session_End(object sender, EventArgs e)
-        {
-
-        }
-
         protected void Application_End(object sender, EventArgs e)
         {
+            System.Threading.Thread.Sleep(1000);
+            PingServer(URL);
+        }
 
+        private void AutoExec(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            return;
+        }
+        public string URL = "http://myevents.apphb.com/";
+        public void PingServer(string url)
+        {
+            try
+            {
+                WebClient http = new WebClient();
+                string Result = http.DownloadString(url);
+            }
+            catch (Exception ex)
+            {
+                string Message = ex.Message;
+            }
         }
     }
 }
