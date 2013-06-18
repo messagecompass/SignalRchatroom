@@ -90,6 +90,7 @@
       <Generator>EntityModelCodeGenerator</Generator>
       <LastGenOutput>dbMessage.Designer.cs</LastGenOutput>
     </EntityDeploy>
+    <Content Include="Common\SQL.txt" />
     <Content Include="dbMessage.Context.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <DependentUpon>dbMessage.edmx</DependentUpon>
